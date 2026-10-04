@@ -1,0 +1,23 @@
+# Per-repository overrides for the overview page and llms.txt.
+# Keys are repository names. All fields are optional; name and description win over
+# the GitHub values, so the daily regeneration keeps them. URL and repository link stay unchanged.
+# Forks are left out automatically unless they set include: true.
+#
+# <repo>:
+#   name: Display name
+#   description: Short description
+#   include: true   # list this repo although it is a fork
+#   exclude: true   # never list this repo
+
+mistral-vibe:
+  name: Mistral Vibe Doku
+  include: true  # a fork, but the documentation site is ours
+  description: Documentation of Mistral Vibe, the minimal CLI coding agent – specification, arc42 architecture and ADRs, reverse-engineered from the source code.
+Semantic-Anchors:
+  description: Shared vocabulary for LLM communication – curated semantic anchors and semantic contracts for precise prompts.
+vibe-coding-risk-radar:
+  description: Risk framework for AI-generated code – five dimensions mapped to four risk tiers, with Claude Code skills for assessment and mitigation.
+ultrathink.club:
+  description: An AI think-tank community. Coming soon.
+brownfield-experiment:
+  exclude: true

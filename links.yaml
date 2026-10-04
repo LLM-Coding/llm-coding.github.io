@@ -1,0 +1,3 @@
+# Shortlinks: key -> target URL. Each key becomes https://llm-coding.github.io/<key>/
+# Keys: lowercase letters, digits and hyphens. They must not collide with a repository name.
+f: https://llm-coding.github.io/fahrrad-reparatur-architektur/
