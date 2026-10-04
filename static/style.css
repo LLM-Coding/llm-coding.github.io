@@ -1,0 +1,34 @@
+:root {
+  color-scheme: light dark;
+  --bg: #fafafa; --fg: #1d1d1f; --muted: #5f6368; --card: #fff;
+  --border: #e2e2e6; --link: #0b57d0;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #121214; --fg: #e8e8ea; --muted: #a0a0a8; --card: #1c1c20;
+    --border: #2e2e34; --link: #8ab4f8; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg);
+  font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+a { color: var(--link); }
+header, main, footer { max-width: 56rem; margin: 0 auto; padding: 1rem; }
+header { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: baseline;
+  justify-content: space-between; border-bottom: 1px solid var(--border); }
+.brand { font-weight: 700; font-size: 1.15rem; color: var(--fg); text-decoration: none; }
+nav a { margin-right: 1rem; }
+nav a:last-child { margin-right: 0; }
+h1 { font-size: 1.8rem; margin: 1rem 0 .25rem; }
+.lead { color: var(--muted); margin-top: 0; }
+.projects { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.card { display: flex; gap: 1rem; align-items: flex-start; background: var(--card);
+  border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+.icon { flex: 0 0 48px; width: 48px; height: 48px; border-radius: 10px; object-fit: contain; }
+.card h2 { font-size: 1.15rem; margin: 0 0 .25rem; }
+.card p { margin: 0 0 .25rem; overflow-wrap: anywhere; }
+.meta { font-size: .875rem; color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; background: var(--card); }
+th, td { text-align: left; padding: .5rem .75rem; border: 1px solid var(--border);
+  overflow-wrap: anywhere; }
+footer { color: var(--muted); font-size: .875rem; border-top: 1px solid var(--border);
+  margin-top: 2rem; }
