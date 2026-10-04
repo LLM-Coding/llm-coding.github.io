@@ -59,9 +59,14 @@ def is_http(url):
     return urlparse(url).scheme in ("http", "https")
 
 
-def select_projects(repos, org_site_repo=ORG_SITE_REPO):
-    chosen = [r for r in repos if r.get("has_pages") and not r.get("archived")
-              and r["name"].lower() != org_site_repo.lower()]
+def select_projects(repos, overrides, org_site_repo=ORG_SITE_REPO):
+    """Repos with Pages, minus archived, the org site, excluded ones and forks (unless included)."""
+    def wanted(r):
+        ov = overrides.get(r["name"], {})
+        return (r.get("has_pages") and not r.get("archived")
+                and r["name"].lower() != org_site_repo.lower()
+                and not ov.get("exclude") and (not r.get("fork") or ov.get("include")))
+    chosen = [r for r in repos if wanted(r)]
     return sorted(chosen, key=lambda r: r["name"].lower())
 
 
@@ -76,8 +81,13 @@ def description(repo, overrides):
 
 def load_overrides(path):
     data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None
-    return {str(k): {f: str(v[f]) for f in ("name", "description") if v and v.get(f)}
-            for k, v in (data or {}).items()}
+    result = {}
+    for key, v in (data or {}).items():
+        v = v or {}
+        entry = {f: str(v[f]) for f in ("name", "description") if v.get(f)}
+        entry.update({f: True for f in ("include", "exclude") if v.get(f) is True})
+        result[str(key)] = entry
+    return result
 
 
 def load_yaml(path):
@@ -305,8 +315,8 @@ def main():
     args = ap.parse_args()
 
     all_repos = gh_api_list(f"orgs/{args.org}/repos?per_page=100")
-    repos = select_projects(all_repos)
     overrides = load_overrides(ROOT / "overrides.yaml")
+    repos = select_projects(all_repos, overrides)
     links = load_yaml(ROOT / "links.yaml")
     # Archived repos keep serving their Pages, so check against every repo name
     validate_links(links, [r["name"] for r in all_repos])

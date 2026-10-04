@@ -10,17 +10,31 @@ import generate as g  # noqa: E402
 ORG = "LLM-Coding"
 
 
-def repo(name, desc="", pages=True, archived=False, homepage=""):
+def repo(name, desc="", pages=True, archived=False, homepage="", fork=False):
     return {"name": name, "description": desc, "has_pages": pages,
-            "archived": archived, "homepage": homepage,
+            "archived": archived, "homepage": homepage, "fork": fork,
             "html_url": f"https://github.com/{ORG}/{name}"}
 
 
 def test_select_projects_filters_pages_archived_and_org_site():
     repos = [repo("b"), repo("a"), repo("no-pages", pages=False),
              repo("old", archived=True), repo("llm-coding.github.io")]
-    names = [r["name"] for r in g.select_projects(repos, "llm-coding.github.io")]
+    names = [r["name"] for r in g.select_projects(repos, {}, "llm-coding.github.io")]
     assert names == ["a", "b"]
+
+
+def test_select_projects_drops_forks_and_excluded_unless_included():
+    repos = [repo("own"), repo("fork", fork=True), repo("kept-fork", fork=True),
+             repo("hidden")]
+    ov = {"kept-fork": {"include": True}, "hidden": {"exclude": True}}
+    assert [r["name"] for r in g.select_projects(repos, ov)] == ["kept-fork", "own"]
+
+
+def test_load_overrides_reads_flags(tmp_path):
+    f = tmp_path / "o.yaml"
+    f.write_text("a:\n  name: A\n  exclude: true\nb:\n  include: true\n")
+    assert g.load_overrides(f) == {"a": {"name": "A", "exclude": True},
+                                   "b": {"include": True}}
 
 
 def test_overrides_win_over_github_for_name_and_description():
