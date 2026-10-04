@@ -49,8 +49,8 @@ def test_initial_icon_is_inline_svg_with_first_letter():
 
 
 def test_shared_icons_are_dropped():
-    icons = {"a": ("png", b"same"), "b": ("png", b"same"), "c": ("svg", b"own")}
-    assert g.drop_shared_icons(icons) == {"c": ("svg", b"own")}
+    icons = {"a": ("png", b"same", "u"), "b": ("png", b"same", "u"), "c": ("svg", b"own", "u")}
+    assert g.drop_shared_icons(icons) == {"c": ("svg", b"own", "u")}
 
 
 def project(name, desc="Desc", url=None, icon=None):
@@ -103,3 +103,30 @@ def test_build_writes_all_files(tmp_path):
     g.write_site(tmp_path, projects, {}, {"f": "https://t/"}, "1.0.0", "2026-10-04")
     for f in ["index.html", "llms.txt", "sl.html", "f/index.html", "style.css", "favicon.svg", ".nojekyll"]:
         assert (tmp_path / f).exists(), f
+
+
+def test_svg_icons_are_hotlinked_not_copied(tmp_path):
+    """Review #1: a foreign SVG served from our origin could run scripts."""
+    projects = [project("s"), project("p")]
+    icons = {"s": ("svg", b"<svg/>", "https://ext.org/i.svg"),
+             "p": ("png", b"\x89PNG", "https://ext.org/i.png")}
+    g.write_site(tmp_path, projects, icons, {}, "1.0.0", "2026-10-04")
+    assert not list((tmp_path / "icons").glob("*.svg"))
+    assert (tmp_path / "icons" / "p.png").exists()
+    html = (tmp_path / "index.html").read_text()
+    assert 'src="https://ext.org/i.svg"' in html and 'src="icons/p.png"' in html
+
+
+def test_fetch_refuses_non_http_urls():
+    """Review #2: icon hrefs come from foreign HTML."""
+    with pytest.raises(ValueError):
+        g.fetch("file:///etc/passwd")
+
+
+def test_pages_url_ignores_non_http_homepage(monkeypatch):
+    """Review #3: a javascript: homepage must not become a card link."""
+    def no_pages(path):
+        raise g.subprocess.CalledProcessError(1, "gh")
+    monkeypatch.setattr(g, "gh_api", no_pages)
+    r = {"name": "x", "full_name": "LLM-Coding/x", "homepage": "javascript:alert(1)"}
+    assert g.pages_url(r) == "https://llm-coding.github.io/x/"

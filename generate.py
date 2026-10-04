@@ -49,7 +49,14 @@ def pages_url(repo):
         url = gh_api(f"repos/{repo['full_name']}/pages").get("html_url")
     except (subprocess.CalledProcessError, AttributeError):
         url = None
-    return url or repo.get("homepage") or f"{SITE_URL}{repo['name']}/"
+    homepage = repo.get("homepage") or ""
+    if not is_http(homepage):
+        homepage = ""
+    return url or homepage or f"{SITE_URL}{repo['name']}/"
+
+
+def is_http(url):
+    return urlparse(url).scheme in ("http", "https")
 
 
 def select_projects(repos, org_site_repo=ORG_SITE_REPO):
@@ -76,7 +83,7 @@ def validate_links(links, repo_names):
             raise ValueError(f"Shortlink key {key!r} is reserved")
         if key in names:
             raise ValueError(f"Shortlink key {key!r} collides with a repository page")
-        if urlparse(url).scheme not in ("http", "https"):
+        if not is_http(url):
             raise ValueError(f"Shortlink {key!r} needs an http(s) URL, got {url!r}")
 
 
@@ -111,13 +118,15 @@ def find_icons(page_html, base_url):
 
 
 def fetch(url, timeout=15):
+    if not is_http(url):
+        raise ValueError(f"Refusing non-http(s) URL {url!r}")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return resp.headers.get_content_type(), resp.read()
 
 
 def fetch_icon(site_url):
-    """Return (extension, bytes) of the site's icon, or None."""
+    """Return (extension, bytes, url) of the site's icon, or None."""
     try:
         _, page = fetch(site_url)
         candidates = find_icons(page.decode("utf-8", "replace"), site_url)
@@ -131,14 +140,14 @@ def fetch_icon(site_url):
             continue
         ext = ICON_TYPES.get(ctype) or Path(urlparse(url).path).suffix.lstrip(".").lower()
         if data and ext in ICON_TYPES.values():
-            return ext, data
+            return ext, data, url
     return None
 
 
 def drop_shared_icons(icons):
     """Drop icons used by several sites (e.g. the docToolchain default) — they tell nothing apart."""
     digests = {}
-    for name, (_, data) in icons.items():
+    for name, (_, data, *_) in icons.items():
         digests.setdefault(hashlib.sha256(data).hexdigest(), []).append(name)
     shared = {n for names in digests.values() if len(names) > 1 for n in names}
     return {n: v for n, v in icons.items() if n not in shared}
@@ -259,9 +268,13 @@ def write_site(out, projects, icons, links, version, generated):
     (out / "icons").mkdir(parents=True)
     for p in projects:
         if p["name"] in icons:
-            ext, data = icons[p["name"]]
-            p["icon"] = f"icons/{p['name']}.{ext}"
-            (out / p["icon"]).write_bytes(data)
+            ext, data, url = icons[p["name"]]
+            if ext == "svg":
+                # A foreign SVG served from our origin could run scripts — hotlink it instead
+                p["icon"] = url
+            else:
+                p["icon"] = f"icons/{p['name']}.{ext}"
+                (out / p["icon"]).write_bytes(data)
     (out / "index.html").write_text(render_index(projects, links, version, generated), "utf-8")
     (out / "llms.txt").write_text(render_llms(projects, links, version), "utf-8")
     (out / "sl.html").write_text(render_shortlinks(links, version, generated), "utf-8")
@@ -279,10 +292,12 @@ def main():
     ap.add_argument("--org", default="LLM-Coding")
     args = ap.parse_args()
 
-    repos = select_projects(gh_api_list(f"orgs/{args.org}/repos?per_page=100"))
+    all_repos = gh_api_list(f"orgs/{args.org}/repos?per_page=100")
+    repos = select_projects(all_repos)
     overrides = load_yaml(ROOT / "descriptions.yaml")
     links = load_yaml(ROOT / "links.yaml")
-    validate_links(links, [r["name"] for r in repos])
+    # Archived repos keep serving their Pages, so check against every repo name
+    validate_links(links, [r["name"] for r in all_repos])
 
     projects, icons = [], {}
     for r in repos:
