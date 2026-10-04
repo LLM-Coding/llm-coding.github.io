@@ -65,8 +65,19 @@ def select_projects(repos, org_site_repo=ORG_SITE_REPO):
     return sorted(chosen, key=lambda r: r["name"].lower())
 
 
+def display_name(repo, overrides):
+    return overrides.get(repo["name"], {}).get("name") or repo["name"]
+
+
 def description(repo, overrides):
-    return (repo.get("description") or "").strip() or overrides.get(repo["name"], "")
+    return (overrides.get(repo["name"], {}).get("description")
+            or (repo.get("description") or "").strip())
+
+
+def load_overrides(path):
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None
+    return {str(k): {f: str(v[f]) for f in ("name", "description") if v and v.get(f)}
+            for k, v in (data or {}).items()}
 
 
 def load_yaml(path):
@@ -198,7 +209,7 @@ def render_index(projects, links, version, generated):
                 if p.get("icon") else initial_icon(p["name"]))
         items.append(f"""<li class="card">
 {icon}
-<div><h2><a href="{esc(p["url"])}">{esc(p["name"])}</a></h2>
+<div><h2><a href="{esc(p["url"])}">{esc(p.get("title") or p["name"])}</a></h2>
 <p>{esc(p["description"])}</p>
 <p class="meta"><a href="{esc(p["url"])}">{esc(p["url"])}</a> · <a href="{esc(p["repo_url"])}">Repository</a></p></div>
 </li>""")
@@ -218,7 +229,8 @@ def render_llms(projects, links, version):
              "> Open projects about software development with large language models.", "",
              f"Version {version}. Source: https://github.com/LLM-Coding/{ORG_SITE_REPO}", "",
              "## Projects", ""]
-    lines += [f"- [{p['name']}]({p['url']}): {p['description']}" for p in projects]
+    lines += [f"- [{p.get('title') or p['name']}]({p['url']}): {p['description']}"
+              for p in projects]
     lines += ["", "## Shortlinks", ""]
     lines += [f"- {SITE_URL}{k}/ -> {u}" for k, u in links.items()]
     return "\n".join(lines) + "\n"
@@ -294,7 +306,7 @@ def main():
 
     all_repos = gh_api_list(f"orgs/{args.org}/repos?per_page=100")
     repos = select_projects(all_repos)
-    overrides = load_yaml(ROOT / "descriptions.yaml")
+    overrides = load_overrides(ROOT / "overrides.yaml")
     links = load_yaml(ROOT / "links.yaml")
     # Archived repos keep serving their Pages, so check against every repo name
     validate_links(links, [r["name"] for r in all_repos])
@@ -303,7 +315,8 @@ def main():
     for r in repos:
         url = pages_url(r)
         print(f"{r['name']}: {url}")
-        projects.append({"name": r["name"], "description": description(r, overrides),
+        projects.append({"name": r["name"], "title": display_name(r, overrides),
+                         "description": description(r, overrides),
                          "url": url, "repo_url": r["html_url"], "icon": None})
         icon = fetch_icon(url)
         if icon:

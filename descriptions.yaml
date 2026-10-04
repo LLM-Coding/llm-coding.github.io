@@ -1,5 +1,0 @@
-# Fallback descriptions for repositories whose GitHub description is empty.
-# The GitHub description wins as soon as one is set.
-Semantic-Anchors: Shared vocabulary for LLM communication – curated semantic anchors and semantic contracts for precise prompts.
-vibe-coding-risk-radar: Risk framework for AI-generated code – five dimensions mapped to four risk tiers, with Claude Code skills for assessment and mitigation.
-ultrathink.club: An AI think-tank community. Coming soon.

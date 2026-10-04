@@ -23,10 +23,23 @@ def test_select_projects_filters_pages_archived_and_org_site():
     assert names == ["a", "b"]
 
 
-def test_description_falls_back_to_overrides():
-    assert g.description(repo("x", "From GitHub"), {"x": "Fallback"}) == "From GitHub"
-    assert g.description(repo("x"), {"x": "Fallback"}) == "Fallback"
+def test_overrides_win_over_github_for_name_and_description():
+    ov = {"x": {"name": "X Docs", "description": "Override"}}
+    assert g.display_name(repo("x"), ov) == "X Docs"
+    assert g.description(repo("x", "From GitHub"), ov) == "Override"
+
+
+def test_without_override_github_values_are_used():
+    assert g.display_name(repo("x"), {}) == "x"
+    assert g.description(repo("x", "From GitHub"), {"x": {"name": "X"}}) == "From GitHub"
     assert g.description(repo("x"), {}) == ""
+
+
+def test_index_and_llms_show_display_name():
+    p = project("mistral-vibe")
+    p["title"] = "Mistral Vibe Doku"
+    assert ">Mistral Vibe Doku</a></h2>" in g.render_index([p], {}, "1", "d")
+    assert "- [Mistral Vibe Doku](" in g.render_llms([p], {}, "1")
 
 
 def test_find_icon_prefers_largest_apple_touch_icon():
