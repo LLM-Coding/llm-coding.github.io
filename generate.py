@@ -96,9 +96,14 @@ def load_overrides(path):
 def load_layout(path):
     """Return (order, extras) from overrides.yaml: display order and cards without a repository."""
     data = (yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None) or {}
+    if not isinstance(data.get("order") or [], list):
+        raise ValueError("order must be a list, e.g. order: [a, b]")
+    extras = data.get("extras") or {}
+    if not isinstance(extras, dict) or not all(isinstance(v, dict) for v in extras.values()):
+        raise ValueError("extras must map each key to name, url and description")
     order = [str(k) for k in data.get("order") or []]
     extras = {str(k): {f: str(v[f]) for f in ("name", "url", "description") if (v or {}).get(f)}
-              for k, v in (data.get("extras") or {}).items()}
+              for k, v in extras.items()}
     return order, extras
 
 
@@ -135,6 +140,8 @@ def validate_extras(extras, repo_names, links):
             raise ValueError(f"Extras key {key!r} collides with a shortlink")
         if not is_http(e.get("url") or ""):
             raise ValueError(f"Extra {key!r} needs an http(s) URL, got {e.get('url')!r}")
+        if not e.get("description"):
+            raise ValueError(f"Extra {key!r} needs a description")
 
 
 def load_yaml(path):
@@ -212,12 +219,17 @@ def fetch_icon(site_url):
     return None
 
 
-def drop_shared_icons(icons):
-    """Drop icons used by several sites (e.g. the docToolchain default) — they tell nothing apart."""
+def drop_shared_icons(icons, extras=()):
+    """Drop icons used by several sites (e.g. the docToolchain default) — they tell nothing apart.
+    An extra that shares an icon loses it, but never takes it away from a repository."""
     digests = {}
     for name, (_, data, *_) in icons.items():
         digests.setdefault(hashlib.sha256(data).hexdigest(), []).append(name)
-    shared = {n for names in digests.values() if len(names) > 1 for n in names}
+    shared = set()
+    for names in digests.values():
+        repos = [n for n in names if n not in extras]
+        shared |= set(names) - set(repos) if len(names) > 1 else set()
+        shared |= set(repos) if len(repos) > 1 else set()
     return {n: v for n, v in icons.items() if n not in shared}
 
 
@@ -385,7 +397,7 @@ def main():
         icon = fetch_icon(p["url"])
         if icon:
             icons[p["name"]] = icon
-    icons = drop_shared_icons(icons)
+    icons = drop_shared_icons(icons, set(extras))
 
     version = (ROOT / "VERSION").read_text().strip()
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d")

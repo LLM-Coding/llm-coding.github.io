@@ -84,7 +84,7 @@ def test_order_rejects_unknown_or_duplicate_keys(order):
     ({"A": {"name": "X", "url": "https://t/"}}, "key"),
     ({"f": {"name": "X", "url": "https://t/"}}, "shortlink"),
     ({"icons": {"name": "X", "url": "https://t/"}}, "reserved"),
-    ({"w": {"name": "X", "url": "javascript:alert(1)"}}, "URL"),
+    ({"w": {"name": "X", "url": "javascript:alert(1)", "description": "D"}}, "URL"),
     ({"w": {"name": "X"}}, "URL"),
 ])
 def test_validate_extras_rejects_bad_entries(extras, err):
@@ -107,3 +107,29 @@ def test_extra_card_has_no_repository_link_and_no_label():
 
 def test_repo_card_keeps_repository_link():
     assert ">Repository</a>" in g.render_index([card("a")], {}, "1", "d")
+
+
+def test_extra_sharing_a_repo_icon_loses_it_but_the_repo_keeps_it():
+    """Review: an extra inside a repo's site must not take that repo's icon away."""
+    icons = {"repo": ("png", b"same", "u"), "extra": ("png", b"same", "u"),
+             "r1": ("png", b"dup", "u"), "r2": ("png", b"dup", "u"),
+             "own": ("png", b"own", "u")}
+    assert g.drop_shared_icons(icons, extras={"extra", "own"}) == {
+        "repo": ("png", b"same", "u"), "own": ("png", b"own", "u")}
+
+
+@pytest.mark.parametrize("text", [
+    "order: harness-wheel\n",
+    "extras: [a, b]\n",
+    "extras:\n  w: https://x.org/\n",
+])
+def test_load_layout_rejects_malformed_fields(tmp_path, text):
+    f = tmp_path / "o.yaml"
+    f.write_text(text)
+    with pytest.raises(ValueError, match="order|extras"):
+        g.load_layout(f)
+
+
+def test_validate_extras_requires_description():
+    with pytest.raises(ValueError, match="description"):
+        g.validate_extras({"w": {"name": "X", "url": "https://t/"}}, [], {})

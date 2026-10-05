@@ -13,7 +13,8 @@
 # order:  display order on the page and in llms.txt. Repos and extras not listed follow
 #         alphabetically. Unknown names fail the build.
 # extras: cards without a repository. Keys use a-z, 0-9 and '-' and must not collide with
-#         a repository name or a shortlink. url is required (http/https).
+#         a repository name or a shortlink. url (http/https) and description are required.
+# Because of these fields, repositories named order or extras cannot be overridden.
 
 order: [Semantic-Anchors, vibe-coding-risk-radar, harness-wheel,
         ultrathink.club, fahrrad-reparatur-architektur, mistral-vibe, doctoolchain]
