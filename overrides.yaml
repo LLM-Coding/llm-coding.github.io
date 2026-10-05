@@ -8,6 +8,24 @@
 #   description: Short description
 #   include: true   # list this repo although it is a fork
 #   exclude: true   # never list this repo
+#
+# Two top-level fields are not repositories:
+# order:  display order on the page and in llms.txt. Repos and extras not listed follow
+#         alphabetically. Unknown names fail the build.
+# extras: cards without a repository. Keys use a-z, 0-9 and '-' and must not collide with
+#         a repository name or a shortlink. url is required (http/https).
+
+order: [Semantic-Anchors, vibe-coding-risk-radar, harness-wheel,
+        ultrathink.club, fahrrad-reparatur-architektur, mistral-vibe, doctoolchain]
+extras:
+  harness-wheel:
+    name: Harness Coverage Wheel
+    url: https://llm-coding.github.io/Semantic-Anchors/harness-coverage-wheel.html
+    description: Check which parts of your agent harness are covered – an interactive wheel, part of Semantic Anchors.
+  doctoolchain:
+    name: docToolchain
+    url: https://doctoolchain.org/
+    description: "Docs-as-Code toolchain: AsciiDoc, arc42 and diagrams, built and published automatically."
 
 mistral-vibe:
   name: Mistral Vibe Doku

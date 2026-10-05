@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent
 SITE_URL = "https://llm-coding.github.io/"
 ORG_SITE_REPO = "llm-coding.github.io"
 RESERVED_KEYS = {"icons", "sl", "index", "llms", "style"}
+LAYOUT_KEYS = ("order", "extras")  # top-level fields in overrides.yaml that are not repositories
 KEY_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 ICON_TYPES = {"image/png": "png", "image/svg+xml": "svg", "image/x-icon": "ico",
               "image/vnd.microsoft.icon": "ico", "image/jpeg": "jpg", "image/webp": "webp"}
@@ -83,11 +84,57 @@ def load_overrides(path):
     data = yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None
     result = {}
     for key, v in (data or {}).items():
+        if key in LAYOUT_KEYS:
+            continue
         v = v or {}
         entry = {f: str(v[f]) for f in ("name", "description") if v.get(f)}
         entry.update({f: True for f in ("include", "exclude") if v.get(f) is True})
         result[str(key)] = entry
     return result
+
+
+def load_layout(path):
+    """Return (order, extras) from overrides.yaml: display order and cards without a repository."""
+    data = (yaml.safe_load(path.read_text(encoding="utf-8")) if path.exists() else None) or {}
+    order = [str(k) for k in data.get("order") or []]
+    extras = {str(k): {f: str(v[f]) for f in ("name", "url", "description") if (v or {}).get(f)}
+              for k, v in (data.get("extras") or {}).items()}
+    return order, extras
+
+
+def extra_projects(extras):
+    return [{"name": k, "title": e.get("name") or k, "description": e.get("description", ""),
+             "url": e.get("url"), "repo_url": None, "icon": None} for k, e in extras.items()]
+
+
+def order_projects(projects, order, known_names):
+    """Listed names first, in the given order; the rest alphabetically.
+    Unknown or duplicate names are an error; known but unlisted ones (e.g. archived) are skipped."""
+    known = {n.lower() for n in known_names}
+    rank = {}
+    for i, name in enumerate(order):
+        if name.lower() not in known:
+            raise ValueError(f"Unknown name {name!r} in order")
+        if name.lower() in rank:
+            raise ValueError(f"Duplicate name {name!r} in order")
+        rank[name.lower()] = i
+    return sorted(projects, key=lambda p: (rank.get(p["name"].lower(), len(order)),
+                                           p["name"].lower()))
+
+
+def validate_extras(extras, repo_names, links):
+    names = {n.lower() for n in repo_names}
+    for key, e in extras.items():
+        if not KEY_RE.match(key):
+            raise ValueError(f"Invalid extras key {key!r}: use a-z, 0-9 and '-'")
+        if key in RESERVED_KEYS:
+            raise ValueError(f"Extras key {key!r} is reserved")
+        if key in names:
+            raise ValueError(f"Extras key {key!r} collides with a repository")
+        if key in links:
+            raise ValueError(f"Extras key {key!r} collides with a shortlink")
+        if not is_http(e.get("url") or ""):
+            raise ValueError(f"Extra {key!r} needs an http(s) URL, got {e.get('url')!r}")
 
 
 def load_yaml(path):
@@ -217,11 +264,12 @@ def render_index(projects, links, version, generated):
     for p in projects:
         icon = (f'<img class="icon" src="{esc(p["icon"])}" alt="" width="48" height="48">'
                 if p.get("icon") else initial_icon(p["name"]))
+        repo = f' · <a href="{esc(p["repo_url"])}">Repository</a>' if p.get("repo_url") else ""
         items.append(f"""<li class="card">
 {icon}
 <div><h2><a href="{esc(p["url"])}">{esc(p.get("title") or p["name"])}</a></h2>
 <p>{esc(p["description"])}</p>
-<p class="meta"><a href="{esc(p["url"])}">{esc(p["url"])}</a> · <a href="{esc(p["repo_url"])}">Repository</a></p></div>
+<p class="meta"><a href="{esc(p["url"])}">{esc(p["url"])}</a>{repo}</p></div>
 </li>""")
     body = f"""<h1>LLM-Coding projects</h1>
 <p class="lead">Open projects about software development with large language models.
@@ -317,9 +365,12 @@ def main():
     all_repos = gh_api_list(f"orgs/{args.org}/repos?per_page=100")
     overrides = load_overrides(ROOT / "overrides.yaml")
     repos = select_projects(all_repos, overrides)
+    order, extras = load_layout(ROOT / "overrides.yaml")
     links = load_yaml(ROOT / "links.yaml")
     # Archived repos keep serving their Pages, so check against every repo name
-    validate_links(links, [r["name"] for r in all_repos])
+    repo_names = [r["name"] for r in all_repos]
+    validate_links(links, repo_names)
+    validate_extras(extras, repo_names, links)
 
     projects, icons = [], {}
     for r in repos:
@@ -328,9 +379,12 @@ def main():
         projects.append({"name": r["name"], "title": display_name(r, overrides),
                          "description": description(r, overrides),
                          "url": url, "repo_url": r["html_url"], "icon": None})
-        icon = fetch_icon(url)
+    projects += extra_projects(extras)
+    projects = order_projects(projects, order, repo_names + list(extras))
+    for p in projects:
+        icon = fetch_icon(p["url"])
         if icon:
-            icons[r["name"]] = icon
+            icons[p["name"]] = icon
     icons = drop_shared_icons(icons)
 
     version = (ROOT / "VERSION").read_text().strip()
