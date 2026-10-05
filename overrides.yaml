@@ -16,13 +16,17 @@
 #         a repository name or a shortlink. url (http/https) and description are required.
 # Because of these fields, repositories named order or extras cannot be overridden.
 
-order: [Semantic-Anchors, vibe-coding-risk-radar, harness-wheel,
+order: [Semantic-Anchors, vibe-coding-risk-radar, harness-wheel, code-theory-recovery,
         ultrathink.club, fahrrad-reparatur-architektur, mistral-vibe, doctoolchain]
 extras:
   harness-wheel:
     name: Harness Coverage Wheel
     url: https://llm-coding.github.io/Semantic-Anchors/harness-coverage-wheel.html
     description: Check which parts of your agent harness are covered – an interactive wheel, part of Semantic Anchors.
+  code-theory-recovery:
+    name: Socratic Code Theory Recovery
+    url: https://llm-coding.github.io/Semantic-Anchors/contract/socratic-code-theory-recovery
+    description: Recover a program's theory from its source code – a question tree that ends in arc42 documentation and open questions for the team.
   doctoolchain:
     name: docToolchain
     url: https://doctoolchain.org/
