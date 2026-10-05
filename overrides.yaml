@@ -25,7 +25,7 @@ extras:
     description: Check which parts of your agent harness are covered – an interactive wheel, part of Semantic Anchors.
   code-theory-recovery:
     name: Socratic Code Theory Recovery
-    url: https://llm-coding.github.io/Semantic-Anchors/contract/socratic-code-theory-recovery
+    url: https://llm-coding.github.io/Semantic-Anchors/brownfield/
     description: Recover a program's theory from its source code – a question tree that ends in arc42 documentation and open questions for the team.
   doctoolchain:
     name: docToolchain
